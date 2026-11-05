@@ -1,0 +1,1469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keystroke Dojo</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3047b8">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<script>try{const t=localStorage.getItem('keystroke-dojo-theme');if(t&&t!=='system')document.documentElement.dataset.theme=t;}catch{}</script>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Keystroke Dojo</h1>
+    <a class="switch" href="kids.html">Kids version</a>
+    <div class="belt"><span class="swatch"></span><span><b id="beltName">White belt</b> · <span id="beltNext"></span></span></div>
+    <div class="prefs">
+      <button class="theme-toggle" id="themeBtn" type="button"><span class="dot"></span><span class="lbl">System</span></button>
+      <label>Keyboard
+        <select id="layoutSel"><option value="de">German (QWERTZ)</option><option value="us">English (QWERTY)</option></select>
+      </label>
+      <label>Words
+        <select id="langSel"><option value="en">English</option><option value="de">Deutsch</option></select>
+      </label>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button data-view="dojo" role="tab">Lessons</button>
+    <button data-view="sprint" role="tab">Sprint</button>
+    <button data-view="rain" role="tab">Word Rain</button>
+    <button data-view="progress" role="tab">Progress</button>
+  </nav>
+
+  <main>
+    <section class="view" id="view-dojo">
+      <div class="dojo">
+        <aside class="ladder"><h2>Lessons</h2><ol id="ladder"></ol></aside>
+        <div class="mat">
+          <div class="mat-head">
+            <div><p class="eyebrow" id="lessonEyebrow"></p><h2 id="lessonTitle"></h2><p class="hint" id="lessonHint"></p></div>
+            <div class="newkeys" id="newKeys"></div>
+          </div>
+          <div class="live" id="dojoLive"></div>
+          <div class="stage"><div class="text" id="dojoText"><div class="inner"></div></div><div class="result" id="dojoResult" hidden></div></div>
+          <p class="help">Start typing to begin. Wrong keys don't advance: fix them, then carry on. Esc restarts.</p>
+          <div class="kbd-wrap" id="dojoKbd"></div>
+          <p class="finger-hint" id="fingerHint"></p>
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-sprint" hidden>
+      <div class="seg" id="sprintDur">
+        <button class="btn" data-dur="30">30 s</button><button class="btn" data-dur="60">60 s</button><button class="btn" data-dur="120">2 min</button>
+      </div>
+      <div class="live" id="sprintLive"></div>
+      <div class="stage"><div class="text" id="sprintText"><div class="inner"></div></div><div class="result" id="sprintResult" hidden></div></div>
+      <p class="help">The clock starts on your first key. Esc restarts.</p>
+    </section>
+
+    <section class="view" id="view-rain" hidden>
+      <div class="hud" id="rainHud"></div>
+      <div class="arena" id="arena">
+        <div class="ground"></div>
+        <div class="overlay" id="rainOverlay"></div>
+      </div>
+      <p class="help">Type a word's first letter to lock on, then finish it. Backspace drops the target. Esc pauses.</p>
+      <div class="kbd-wrap" id="rainKbd"></div>
+    </section>
+    <section class="view" id="view-progress" hidden>
+      <div class="tiles" id="tiles"></div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>Speed</h3><p class="sub">Words per minute, last 30 runs</p>
+          <div class="chart" id="chSpeed"></div>
+        </div>
+        <div class="card">
+          <h3>Accuracy</h3><p class="sub">Correct keystrokes, last 30 runs</p>
+          <div class="chart" id="chAcc"></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h3>Practice time</h3><p class="sub">Minutes per day, last 14 days</p>
+          <div class="chart" id="chDays"></div>
+          <div class="chart-legend"><span><i style="background:var(--accent)"></i>Goal met</span><span><i style="background:var(--bar-low)"></i>Below goal</span><span><i class="dash"></i>Daily goal</span></div>
+          <div class="goal-row"><label for="goalSel">Daily goal</label>
+            <select id="goalSel"><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option><option value="30">30 min</option></select>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Keys to work on</h3><p class="sub">Ranked by error rate and how slowly you hit them</p>
+          <div id="weakList"></div>
+          <button class="btn primary" id="drillBtn" type="button">Start focused drill</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <h3>Error heatmap</h3><p class="sub">Each key coloured by how often you miss it. Dashed keys need more presses before they're rated.</p>
+        <div class="kbd-wrap" id="heatKbd"></div>
+        <p class="heat-detail" id="heatDetail">Hover a key for details.</p>
+        <div class="heat-scale" id="heatScale"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <h3>Recent runs</h3>
+        <div class="table-wrap"><table id="recent"></table></div>
+      </div>
+
+      <div class="danger-row">
+        <button class="btn" id="resetBtn" type="button">Erase all progress</button>
+        <span id="resetConfirm" hidden>Erase lessons, stats and history? This can't be undone.
+          <button class="btn danger" id="resetYes" type="button">Erase</button>
+          <button class="btn" id="resetNo" type="button">Keep</button></span>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const round1 = n => Math.round(n * 10) / 10;
+// Local calendar date (not UTC), so late-evening practice counts for the right day
+const todayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// ───────────────────────── 1. DATA (placeholders) ─────────────────────────
+// Sprint pool: common mid-length words. German nouns keep their capital letter.
+const WORDS = {
+  en: ['about', 'after', 'again', 'always', 'another', 'answer', 'around', 'because', 'before', 'begin', 'between',
+       'both', 'bring', 'build', 'called', 'change', 'children', 'city', 'close', 'company', 'could', 'country',
+       'course', 'different', 'during', 'early', 'enough', 'every', 'example', 'family', 'follow', 'found', 'friend',
+       'general', 'great', 'group', 'happen', 'house', 'important', 'include', 'interest', 'keep', 'kind', 'large',
+       'later', 'learn', 'leave', 'little', 'local', 'market', 'might', 'money', 'morning', 'music', 'never', 'night',
+       'number', 'often', 'open', 'order', 'other', 'paper', 'people', 'person', 'place', 'point', 'power', 'problem',
+       'program', 'public', 'question', 'quickly', 'rather', 'really', 'report', 'result', 'right', 'school', 'second',
+       'service', 'should', 'simple', 'small', 'social', 'something', 'start', 'state', 'still', 'story', 'student',
+       'study', 'system', 'table', 'think', 'though', 'three', 'through', 'today', 'together', 'under', 'until',
+       'water', 'where', 'which', 'while', 'without', 'world', 'would', 'write', 'year', 'young', 'project', 'meeting',
+       'budget', 'review', 'decision', 'process', 'team', 'plan', 'value', 'quality', 'support', 'office', 'travel',
+       'window', 'garden', 'weather', 'coffee'],
+  de: ['aber', 'alle', 'allein', 'also', 'andere', 'Antwort', 'Arbeit', 'auch', 'Abend', 'bald', 'beide', 'beginnen',
+       'bekommen', 'Beispiel', 'besser', 'bitte', 'bleiben', 'brauchen', 'Bericht', 'Buch', 'dann', 'danke', 'denken',
+       'deshalb', 'dort', 'durch', 'eigentlich', 'einfach', 'Ende', 'endlich', 'Entscheidung', 'erst', 'etwas',
+       'Familie', 'fahren', 'Farbe', 'fertig', 'finden', 'Frage', 'Freund', 'früh', 'ganz', 'geben', 'gehen', 'gestern',
+       'gleich', 'Glück', 'groß', 'haben', 'halten', 'Hand', 'Haus', 'heute', 'hier', 'immer', 'Jahr', 'jetzt', 'Kind',
+       'klein', 'kommen', 'können', 'Kopf', 'kurz', 'lange', 'lassen', 'laufen', 'leben', 'lernen', 'lesen', 'Leute',
+       'machen', 'manchmal', 'Mensch', 'Minute', 'Morgen', 'müssen', 'Musik', 'nach', 'nächste', 'Name', 'nehmen',
+       'neu', 'nicht', 'noch', 'oben', 'oder', 'offen', 'Ordnung', 'Platz', 'Projekt', 'Plan', 'Problem', 'Raum',
+       'richtig', 'ruhig', 'sagen', 'schnell', 'schon', 'schreiben', 'Schule', 'sehen', 'sehr', 'sicher', 'sollen',
+       'spielen', 'sprechen', 'Stadt', 'Stunde', 'suchen', 'Tag', 'Team', 'trotzdem', 'über', 'unter', 'vielleicht',
+       'Wasser', 'Weg', 'weil', 'Welt', 'wenig', 'wichtig', 'wieder', 'wissen', 'Woche', 'wohnen', 'Zeit', 'ziemlich',
+       'zusammen', 'zwischen', 'Ziel']
+};
+// Word Rain pool: short, lowercase, 3–7 letters
+const RAIN_WORDS = {
+  en: ['rain', 'drop', 'type', 'storm', 'cloud', 'wind', 'snow', 'flash', 'sky', 'sun', 'star', 'moon', 'wave', 'fire',
+       'ice', 'frost', 'mist', 'fog', 'hail', 'bolt', 'beam', 'glow', 'spark', 'dash', 'jump', 'run', 'fast', 'quick',
+       'swift', 'zoom', 'rush', 'race', 'spin', 'flip', 'kick', 'block', 'dodge', 'catch', 'throw', 'grab', 'chase',
+       'blast', 'burst', 'crash', 'boom', 'pop', 'zap', 'buzz', 'fizz', 'hop', 'skip', 'glide', 'float', 'rise',
+       'climb', 'quest', 'prize', 'gold', 'coin', 'gem', 'key', 'lock', 'door', 'ninja', 'dojo', 'belt', 'focus',
+       'combo', 'score', 'level', 'bonus'],
+  de: ['regen', 'wolke', 'blitz', 'sturm', 'wind', 'schnee', 'nebel', 'hagel', 'sonne', 'mond', 'stern', 'welle',
+       'feuer', 'eis', 'frost', 'tau', 'licht', 'strahl', 'funke', 'flug', 'sprung', 'lauf', 'eile', 'tempo',
+       'schnell', 'flink', 'rasch', 'jagd', 'wurf', 'fang', 'stoß', 'schlag', 'knall', 'krach', 'rausch', 'tanz',
+       'dreh', 'kick', 'klick', 'takt', 'punkt', 'ziel', 'preis', 'gold', 'münze', 'juwel', 'schatz', 'schloss',
+       'tür', 'held', 'ninja', 'dojo', 'gurt', 'kampf', 'mut', 'kraft', 'fokus', 'bonus', 'stufe', 'rekord', 'sieg',
+       'krone', 'drache', 'tiger', 'adler', 'fuchs', 'falke']
+};
+
+// ───────────────────────── 2. STATE + STORAGE ─────────────────────────
+const Store = {
+  key: 'keystroke-dojo',
+  defaults: () => ({ layout: 'de', layoutManual: false, lang: 'en', sprintDur: 60, lesson: 0, rainGuide: true, goal: 10,
+                     lessons: {}, keyStats: {}, history: [], daily: {}, sprintBest: 0, rainBest: 0 }),
+  load()  { try { return { ...this.defaults(), ...JSON.parse(localStorage.getItem(this.key)) }; } catch { return this.defaults(); } },
+  save(s) { try { localStorage.setItem(this.key, JSON.stringify(s)); } catch {} }
+};
+let state = Store.load();
+
+function recordRun(mode, r, extra = {}) {
+  if (r.chars < 10) return;
+  for (const [ch, s] of Object.entries(r.keys)) {
+    const k = keyIdFor(ch), t = state.keyStats[k] || (state.keyStats[k] = { n: 0, e: 0, ms: 0, c: 0 });
+    t.n += s.n; t.e += s.e; t.ms += s.ms; t.c += s.c;
+  }
+  const day = todayKey();
+  state.daily[day] = (state.daily[day] || 0) + Math.round(r.secs);
+  state.history.push({ t: Date.now(), m: mode, w: round1(r.wpm), a: round1(r.acc), s: Math.round(r.secs), ...extra });
+  if (state.history.length > 300) state.history.splice(0, state.history.length - 300);
+  Store.save(state);
+}
+
+// ───────────────────────── 3. KEYBOARD LAYOUTS ─────────────────────────
+// Each row is 15 key-units wide. Strings are typing keys; objects are modifiers or wide keys.
+const M = (label, w, id) => ({ mod: true, label, w, id });
+const LAYOUTS = {
+  de: {
+    name: 'QWERTZ',
+    rows: [
+      [...'^1234567890ß´', M('⌫', 2)],
+      [M('Tab', 1.5), ...'qwertzuiopü+', M('⏎', 1.5)],
+      [M('Caps', 1.75), ...'asdfghjklöä#', M('', 1.25)],
+      [M('Shift', 1.25, 'shiftL'), ...'<yxcvbnm,.-', M('Shift', 2.75, 'shiftR')]
+    ],
+    shifted: { '!':'1', '"':'2', '§':'3', '$':'4', '%':'5', '&':'6', '/':'7', '(':'8', ')':'9', '=':'0',
+               '?':'ß', '*':'+', "'":'#', '>':'<', ';':',', ':':'.', '_':'-', '°':'^', '`':'´' }
+  },
+  us: {
+    name: 'QWERTY',
+    rows: [
+      [...'`1234567890-=', M('⌫', 2)],
+      [M('Tab', 1.5), ...'qwertyuiop[]', { key: '\\', w: 1.5 }],
+      [M('Caps', 1.75), ..."asdfghjkl;'", M('⏎', 2.25)],
+      [M('Shift', 2.25, 'shiftL'), ...'zxcvbnm,./', M('Shift', 2.75, 'shiftR')]
+    ],
+    shifted: { '~':'`', '!':'1', '@':'2', '#':'3', '$':'4', '%':'5', '^':'6', '&':'7', '*':'8', '(':'9', ')':'0',
+               '_':'-', '+':'=', '{':'[', '}':']', '|':'\\', ':':';', '"':"'", '<':',', '>':'.', '?':'/' }
+  }
+};
+// Base key set per layout, for lookups
+for (const L of Object.values(LAYOUTS)) {
+  L.keys = new Set([' ']);
+  L.rows.flat().forEach(k => { if (typeof k === 'string') L.keys.add(k); else if (k.key) L.keys.add(k.key); });
+}
+
+// Finger for the n-th typing key of a row. Column 0 = the Q/A column.
+const FINGER_COLS = ['lp', 'lr', 'lm', 'li', 'li', 'ri', 'ri', 'rm', 'rr', 'rp'];
+function fingerFor(row, n, layout) {
+  let c = n;
+  if (row === 0) c = n - 1;                          // number row starts one key left of Q
+  if (row === 3 && layout === 'de') c = n - 1;       // German '<' key sits left of Y
+  return c < 0 ? 'lp' : c > 9 ? 'rp' : FINGER_COLS[c];
+}
+const FINGER_NAMES = { lp: 'left little finger', lr: 'left ring finger', lm: 'left middle finger', li: 'left index finger',
+                       ri: 'right index finger', rm: 'right middle finger', rr: 'right ring finger', rp: 'right little finger', th: 'either thumb' };
+
+// Which physical key (and whether Shift) produces a character on the active layout
+function charToKey(ch, layout = state.layout) {
+  const L = LAYOUTS[layout];
+  if (L.keys.has(ch)) return { key: ch, shift: false };
+  const lower = ch.toLowerCase();
+  if (lower !== ch && L.keys.has(lower)) return { key: lower, shift: true };
+  if (L.shifted[ch]) return { key: L.shifted[ch], shift: true };
+  return null;
+}
+const keyIdFor = ch => charToKey(ch)?.key ?? ch.toLowerCase();
+
+// ───────────────────────── 4. ON-SCREEN KEYBOARD ─────────────────────────
+class Keyboard {
+  constructor(el, { onFinger } = {}) { this.el = el; this.onFinger = onFinger; this.lit = []; }
+
+  render(layout = state.layout) {
+    this.layout = layout;
+    this.map = new Map();
+    const kbd = document.createElement('div');
+    kbd.className = 'kbd';
+    kbd.setAttribute('aria-hidden', 'true');
+    LAYOUTS[layout].rows.forEach((row, r) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'krow';
+      let n = 0;
+      for (const item of row) {
+        const k = document.createElement('div');
+        if (item.mod) {
+          k.className = 'key mod';
+          k.textContent = item.label;
+          k.style.setProperty('--w', item.w);
+          if (item.id) this[item.id] = k;
+        } else {
+          const ch = typeof item === 'string' ? item : item.key;
+          const f = fingerFor(r, n++, layout);
+          k.className = `key f-${f}`;
+          k.dataset.f = f;
+          k.textContent = ch === 'ß' ? 'ß' : ch.toUpperCase();
+          k.style.setProperty('--w', item.w || 1);
+          if (ch === 'f' || ch === 'j') k.classList.add('home');
+          this.map.set(ch, k);
+        }
+        rowEl.append(k);
+      }
+      kbd.append(rowEl);
+    });
+    const spaceRow = document.createElement('div');
+    spaceRow.className = 'krow space-row';
+    const space = document.createElement('div');
+    space.className = 'key f-th';
+    space.dataset.f = 'th';
+    space.style.setProperty('--w', 6.25);
+    this.map.set(' ', space);
+    spaceRow.append(space);
+    kbd.append(spaceRow);
+    this.el.replaceChildren(kbd);
+    this.lit = [];
+  }
+
+  // Light up the key for the next character, plus the opposite-hand Shift when needed
+  setNext(ch) {
+    this.lit.forEach(k => k.classList.remove('next'));
+    this.lit = [];
+    const m = ch == null ? null : charToKey(ch, this.layout);
+    const k = m && this.map.get(m.key);
+    if (!k) { this.onFinger?.(null); return; }
+    k.classList.add('next');
+    this.lit.push(k);
+    if (m.shift) {
+      const shiftKey = k.dataset.f[0] === 'l' ? this.shiftR : this.shiftL;
+      shiftKey.classList.add('next');
+      this.lit.push(shiftKey);
+    }
+    this.onFinger?.(k.dataset.f, m.shift);
+  }
+
+  // Colour each key by its recorded error rate; keys with too few presses are shown dashed
+  heat(stats, onHover) {
+    this.el.querySelector('.kbd').classList.add('heat');
+    for (const [k, el] of this.map) {
+      const s = stats[k];
+      el.classList.remove('nodata', 'hot');
+      el._info = { k, s };
+      if (!s || s.n + s.e < MIN_ATTEMPTS) { el.classList.add('nodata'); el.style.removeProperty('--h'); continue; }
+      const b = heatBucket(errRate(s));
+      el.style.setProperty('--h', HEAT_MIX[b] + '%');
+      if (b >= 3) el.classList.add('hot');
+    }
+    this.el.onmouseover = e => { const key = e.target.closest('.key'); onHover(key?._info || null); };
+    this.el.onmouseleave = () => onHover(null);
+  }
+
+  flash(ch, ok) {
+    const m = charToKey(ch, this.layout), k = m && this.map.get(m.key);
+    if (!k) return;
+    const cls = ok ? 'hit-ok' : 'hit-bad';
+    k.classList.remove('hit-ok', 'hit-bad'); void k.offsetWidth; k.classList.add(cls);
+    clearTimeout(k._t); k._t = setTimeout(() => k.classList.remove(cls), 160);
+  }
+}
+
+// ───────────────────────── 5. LESSONS + PROGRESSION ─────────────────────────
+// A value given as {de, us} depends on the keyboard layout; {en, de} depends on the word language.
+const LESSONS = [
+  { title: 'Anchor keys', keys: 'fj', target: 8,
+    hint: 'Rest your index fingers on F and J. Feel the bumps. Every finger returns home after each stroke.',
+    words: ['fff', 'jjj', 'fjf', 'jfj', 'ffj', 'jjf', 'fj', 'jf', 'fjjf', 'jffj', 'ffjj', 'jjff', 'fjfj', 'jfjf'] },
+  { title: 'Middle fingers', keys: 'dk', target: 9,
+    hint: 'Middle fingers rest on D and K. Keep wrists relaxed and hovering.',
+    words: ['ddd', 'kkk', 'dkd', 'kdk', 'dfd', 'kjk', 'fdf', 'jkj', 'dfk', 'kjd', 'fdjk', 'jkfd', 'dkfj', 'kdjf', 'ddkk', 'fdk', 'jdk'] },
+  { title: 'Ring fingers', keys: 'sl', target: 10,
+    hint: 'Ring fingers rest on S and L. Thumbs tap the space bar.',
+    words: ['sss', 'lll', 'sls', 'lsl', 'sds', 'lkl', 'sdf', 'lkj', 'fds', 'jkl', 'sdfj', 'lkjf', 'sldk', 'dsl', 'ksl', 'flsk', 'jdsl', 'slsl'] },
+  { title: 'Little fingers', keys: { de: 'aö', us: 'a;' }, target: 10,
+    hint: 'Little fingers complete the home row. All eight fingers now have a home.',
+    words: {
+      de: ['aöa', 'öaö', 'aaö', 'ööa', 'aöl', 'söa', 'fjöa', 'dsaö', 'öl', 'öls',
+           'as', 'ad', 'add', 'all', 'ask', 'dad', 'fad', 'fall', 'falls', 'flask', 'lad', 'lass', 'sad', 'salad', 'salsa', 'alas',
+           'das', 'dass', 'als', 'fass', 'kalk', 'saal', 'aal', 'las', 'skala'],
+      us: ['a;a', ';a;', 'aa;', ';;a', 'l;l', 'k;k', 'as;', 'ask;', 'sad;', 'fall;',
+           'as', 'ad', 'add', 'all', 'ask', 'dad', 'fad', 'fall', 'falls', 'flask', 'lad', 'lass', 'sad', 'salad', 'salsa', 'alas',
+           'das', 'dass', 'als', 'fass', 'kalk', 'saal', 'aal', 'las', 'skala'] } },
+  { title: 'Index inward', keys: 'gh', target: 11,
+    hint: 'Index fingers slide one key toward the centre, then spring back.',
+    words: {
+      en: ['ghg', 'hgh', 'fgf', 'jhj', 'fgj', 'jhf', 'dgh', 'khg', 'ghgh',
+           'has', 'had', 'gas', 'glad', 'flag', 'flags', 'flash', 'dash', 'hall', 'half', 'shall', 'lash', 'ash', 'aha', 'lag', 'sag', 'gala', 'hash'],
+      de: ['ghg', 'hgh', 'fgf', 'jhj', 'fgj', 'jhf', 'dgh', 'khg', 'ghgh',
+           'hals', 'glas', 'gas', 'lag', 'sag', 'sah', 'kahl', 'jagd', 'aha', 'das', 'fall', 'hall'] } },
+  { title: 'Top row: E and I', keys: 'ei', target: 12,
+    hint: 'Middle fingers reach up. Keep the others anchored.',
+    words: {
+      en: ['eie', 'iei', 'ded', 'kik', 'dei', 'kie', 'fel', 'jil',
+           'side', 'said', 'idea', 'file', 'field', 'like', 'life', 'self', 'desk', 'deal', 'lead', 'head', 'held', 'fish',
+           'dish', 'high', 'kid', 'lake', 'shake', 'skill', 'hike', 'feel', 'seek', 'she', 'his', 'hide', 'glide', 'edge'],
+      de: ['eie', 'iei', 'ded', 'kik', 'dei', 'kie', 'fel', 'jil',
+           'die', 'sie', 'dies', 'eis', 'leise', 'lied', 'sieg', 'seil', 'heil', 'held', 'feld', 'fels', 'geld', 'idee',
+           'elf', 'alle', 'halle', 'egal', 'hagel', 'kegel', 'klee', 'jede', 'kies', 'essig', 'see', 'fiel', 'öde', 'ölig', 'höfe'] } },
+  { title: 'Top row: R and U', keys: 'ru', target: 13,
+    hint: 'Index fingers reach up and slightly left.',
+    words: {
+      en: ['rur', 'uru', 'frf', 'juj', 'fru', 'jur', 'rkr', 'ulu', 'urfu',
+           'rule', 'rude', 'rush', 'sure', 'user', 'fur', 'her', 'here', 'hire', 'dear', 'rise', 'ride', 'rug', 'red',
+           'read', 'real', 'far', 'are', 'hear', 'share', 'fresh', 'free', 'fire', 'sugar', 'guard', 'large', 'fear'],
+      de: ['rur', 'uru', 'frf', 'juj', 'fru', 'jur', 'rkr', 'ulu', 'urfu',
+           'rad', 'ruhe', 'ruf', 'rede', 'reise', 'reis', 'rief', 'frage', 'frau', 'frei', 'freude', 'feuer', 'euer',
+           'dauer', 'auge', 'haus', 'raus', 'kurs', 'ufer', 'uhr', 'lauf', 'kauf', 'juli', 'gurke', 'höre', 'röhre'] } },
+  { title: 'Bottom row: N and M', keys: 'nm', target: 14,
+    hint: 'Right index curls down. Return to J straight away.',
+    words: {
+      en: ['nmn', 'mnm', 'jnj', 'jmj', 'nmj', 'mjn', 'hnm', 'unm', 'nnmm',
+           'man', 'men', 'name', 'mind', 'main', 'mean', 'need', 'near', 'nine', 'line', 'mine', 'fine', 'run', 'sun',
+           'fun', 'hand', 'land', 'sand', 'small', 'smile', 'human', 'dream', 'summer', 'animal', 'finish', 'mail'],
+      de: ['nmn', 'mnm', 'jnj', 'jmj', 'nmj', 'mjn', 'hnm', 'unm', 'nnmm',
+           'und', 'um', 'im', 'in', 'an', 'mann', 'name', 'nun', 'nein', 'neun', 'mein', 'dein', 'nie', 'nase', 'mund',
+           'immer', 'nehmen', 'nur', 'uns', 'ende', 'himmel', 'maus', 'mal', 'damals', 'kinder', 'nahe', 'hören', 'können', 'mögen'] } },
+  { title: { de: 'T and Z', us: 'T and Y' }, keys: { de: 'tz', us: 'ty' }, target: 15,
+    hint: 'Index fingers stretch up to the centre of the keyboard.',
+    words: {
+      de: {
+        en: ['tzt', 'ztz', 'ftf', 'jzj', 'rtz', 'tzu', 'ftzj', 'zjz',
+             'the', 'that', 'than', 'then', 'time', 'tree', 'test', 'true', 'start', 'three', 'until', 'little', 'matter',
+             'sit', 'get', 'hit', 'just', 'must', 'first', 'last', 'size', 'maze', 'haze', 'gaze', 'zeal', 'dazzle'],
+        de: ['tzt', 'ztz', 'ftf', 'jzj', 'rtz', 'tzu', 'ftzj', 'zjz',
+             'zeit', 'zu', 'zum', 'zur', 'ziel', 'zahl', 'zahn', 'satz', 'sitz', 'salz', 'herz', 'jetzt', 'ganz', 'kurz',
+             'netz', 'tanz', 'zelt', 'zug', 'tag', 'tee', 'tier', 'mut', 'gut', 'gast', 'rat', 'stern', 'stadt', 'nett'] },
+      us: {
+        en: ['tyt', 'yty', 'ftf', 'jyj', 'ryt', 'tyu', 'ftyj', 'yjy',
+             'the', 'that', 'then', 'time', 'tree', 'test', 'true', 'start', 'three', 'until', 'little', 'sit', 'get',
+             'just', 'must', 'first', 'yes', 'yet', 'year', 'say', 'day', 'may', 'stay', 'they', 'try', 'many', 'easy', 'style', 'yard'],
+        de: ['tyt', 'yty', 'ftf', 'jyj', 'ryt', 'tyu', 'ftyj', 'yjy',
+             'tag', 'tee', 'tier', 'mut', 'gut', 'gast', 'rat', 'rest', 'stern', 'stadt', 'hut', 'nett', 'tante', 'mittag',
+             'ernte', 'hymne', 'analyse', 'system', 'gymnasium', 'asyl'] } } },
+  { title: 'O and W', keys: 'ow', target: 16,
+    hint: 'Ring fingers reach up. This one takes a few rounds.',
+    words: {
+      en: ['owo', 'wow', 'lol', 'sws', 'owl', 'wol', 'sow', 'lwo', 'owsl',
+           'own', 'work', 'word', 'world', 'who', 'how', 'now', 'show', 'slow', 'window', 'wonder', 'follow', 'flower',
+           'two', 'well', 'west', 'water', 'sweet', 'other', 'mother', 'more', 'store', 'often', 'home', 'root'],
+      de: ['owo', 'wow', 'lol', 'sws', 'owl', 'wol', 'sow', 'lwo', 'owsl',
+           'wo', 'wer', 'wie', 'was', 'weg', 'wort', 'welt', 'wald', 'wolke', 'wohl', 'wohnen', 'ohne', 'oder', 'ort',
+           'rot', 'tor', 'motor', 'onkel', 'morgen', 'sonne', 'sofort', 'wasser', 'wetter', 'wind', 'wunder', 'löwe', 'wörter'] } },
+  { title: 'C, V and comma', keys: 'cv,', target: 16,
+    hint: 'Left middle and index curl down; right middle finger types the comma.',
+    words: {
+      en: ['cdc', 'dcd', 'vfv', 'fvf', 'k,k', 'cv,', 'vc,', 'd,c',
+           'can', 'car', 'call', 'care', 'case', 'cold', 'come', 'could', 'cover', 'voice', 'vote', 'have', 'give', 'live',
+           'love', 'five', 'move', 'even', 'over', 'never', 'river', 'value', 'visit', 'video', 'check', 'once', 'nice',
+           'and,', 'so,', 'well,', 'now,'],
+      de: ['cdc', 'dcd', 'vfv', 'fvf', 'k,k', 'cv,', 'vc,', 'd,c',
+           'auch', 'noch', 'doch', 'ich', 'mich', 'sich', 'nicht', 'schule', 'schnell', 'acht', 'nacht', 'licht', 'recht',
+           'woche', 'vier', 'viel', 'vor', 'von', 'voll', 'vater', 'vogel', 'vase', 'nerv', 'aktiv', 'kurve', 'klavier',
+           'ja,', 'nun,', 'also,', 'doch,'] } },
+  { title: 'B and P', keys: 'bp', target: 17,
+    hint: 'B is a long reach for the left index. P belongs to the right little finger.',
+    words: {
+      en: ['bfb', 'fbf', 'pop', 'plp', 'bpb', 'pbp', 'bvb', 'fbj',
+           'back', 'bank', 'black', 'blue', 'book', 'both', 'break', 'bring', 'but', 'about', 'best', 'better', 'big',
+           'board', 'problem', 'people', 'place', 'plan', 'point', 'part', 'paper', 'open', 'help', 'keep', 'stop', 'up',
+           'simple', 'public', 'number', 'job'],
+      de: ['bfb', 'fbf', 'pop', 'plp', 'bpb', 'pbp', 'bvb', 'fbj',
+           'aber', 'bald', 'bei', 'berg', 'bett', 'bild', 'bis', 'bitte', 'blau', 'blume', 'boot', 'brief', 'brot', 'buch',
+           'bus', 'papier', 'park', 'person', 'plan', 'post', 'preis', 'problem', 'pause', 'apfel', 'april', 'lampe',
+           'oben', 'leben', 'liebe', 'haupt', 'kopf', 'möbel'] } },
+  { title: 'The rare ones', keys: { de: 'xqy.', us: 'xqz.' }, target: 16,
+    hint: 'Rare letters, but a sure hand on them separates good typists from fast ones.',
+    words: {
+      en: ['xsx', 'qaq', 'yay', 'zaz', 'l.l', 'xq.', 'zyx', 'qxy',
+           'box', 'fix', 'mix', 'six', 'next', 'text', 'taxi', 'exit', 'extra', 'example', 'exact', 'quick', 'quiet',
+           'quite', 'quiz', 'queen', 'question', 'equal', 'quality', 'square', 'zero', 'size', 'zone', 'crazy', 'lazy',
+           'zoo', 'jazz', 'puzzle', 'yes', 'you', 'year', 'every', 'done.', 'yes.', 'next.', 'fix.'],
+      de: ['xsx', 'qaq', 'yay', 'zaz', 'l.l', 'xq.', 'zyx', 'qxy',
+           'text', 'taxi', 'axt', 'hexe', 'mix', 'boxen', 'exakt', 'extra', 'lexikon', 'quelle', 'qual', 'quer', 'quiz',
+           'aquarium', 'bequem', 'quark', 'typ', 'system', 'gymnasium', 'hymne', 'analyse', 'handy', 'party', 'hobby',
+           'baby', 'pony', 'yoga', 'ja.', 'gut.', 'ende.', 'fertig.'] } },
+  { title: { de: 'Umlauts and ß', us: 'Apostrophe' }, keys: { de: 'üäß', us: "'" }, target: 16,
+    hint: { de: 'The right little finger works the umlauts and ß.', us: 'The right little finger types the apostrophe.' },
+    words: {
+      de: ['üöü', 'äöä', 'ßäß', 'püp', 'äla', 'üäö', 'ßöß', 'ä', 'ü',
+           'über', 'für', 'tür', 'müde', 'früh', 'grün', 'kühl', 'glück', 'brücke', 'fühlen', 'müssen', 'würde', 'zurück',
+           'natürlich', 'später', 'käse', 'mädchen', 'länder', 'ähnlich', 'ändern', 'wählen', 'zählen', 'nämlich', 'bär',
+           'straße', 'groß', 'fuß', 'heiß', 'weiß', 'süß', 'spaß', 'grüße', 'größe', 'außen', 'gemäß'],
+      us: {
+        en: ["a'a", "l'l", ";';", "'s", "n't", "s's",
+             "don't", "it's", "can't", "isn't", "you're", "that's", "what's", "let's", "we're", "they're", "doesn't",
+             "won't", "didn't", "here's", "there's", "o'clock"],
+        de: ["a'a", "l'l", ";';", "'s", "n't", "s's",
+             "geht's", "gibt's", "war's", "ist's", "hab'", "mach's", "sag's", "nimm's", "wie's", "so's"] } } },
+  { title: 'Capitals', keys: '⇧', target: 16,
+    hint: 'Hold Shift with the little finger of the opposite hand, then strike the letter.',
+    words: {
+      en: ['Fj', 'Jf', 'Dk', 'Kd', 'Sl', 'Ls', 'Aa', 'Hg',
+           'Monday', 'Friday', 'Sunday', 'January', 'March', 'April', 'London', 'Berlin', 'Munich', 'Europe', 'English',
+           'German', 'Anna', 'Paul', 'The', 'This', 'When', 'Where', 'Why', 'How', 'What', 'We', 'You', 'They', 'Today'],
+      de: ['Fj', 'Jf', 'Dk', 'Kd', 'Sl', 'Ls', 'Aa', 'Hg',
+           'Haus', 'Hund', 'Schule', 'Lehrer', 'Kinder', 'Stadt', 'Land', 'Wasser', 'Morgen', 'Abend', 'Woche', 'Montag',
+           'Freitag', 'Januar', 'Mai', 'Berlin', 'München', 'Bayern', 'Europa', 'Zeit', 'Frage', 'Antwort', 'Arbeit',
+           'Freund', 'Familie', 'Straße', 'Übung', 'Öl', 'Ich', 'Sie', 'Wir'] } },
+  { title: 'Punctuation', keys: '?!-:', target: 15,
+    hint: 'Question marks, exclamation marks, hyphens and colons. Most need Shift.',
+    words: {
+      en: ['?!', '!?', 'a-b', 'k:l', 'x?', 'y!',
+           'why?', 'how?', 'what?', 'who?', 'really?', 'Why?', 'yes!', 'no!', 'stop!', 'wow!', 'great!', 'Stop!',
+           'well-known', 'e-mail', 'up-to-date', 'follow-up', 'part-time', 'note:', 'time:', 'result:', 'Step:'],
+      de: ['?!', '!?', 'a-b', 'k:l', 'x?', 'y!',
+           'wie?', 'was?', 'wo?', 'warum?', 'wann?', 'Wer?', 'ja!', 'nein!', 'super!', 'los!', 'Achtung!', 'Halt!',
+           'E-Mail', 'U-Bahn', 'T-Shirt', 'Ost-West', 'Nord-Süd', 'Hinweis:', 'Datum:', 'Ziel:', 'Ort:'] } },
+  { title: 'Numbers 1–5', keys: '12345', target: 12,
+    hint: 'The left hand reaches up to the number row. Watch the guide, not your hands.',
+    words: {
+      en: ['1', '2', '3', '4', '5', '11', '22', '33', '44', '55', '12', '15', '21', '34', '45', '123', '345', '512',
+           '1234', '5432', '135', '24', '12:15', '3:45', '2.5', '1st', '2nd', '3rd', '4th', '5th',
+           'page', 'room', 'step', 'level', 'score', 'goal'],
+      de: ['1', '2', '3', '4', '5', '11', '22', '33', '44', '55', '12', '15', '21', '34', '45', '123', '345', '512',
+           '1234', '5432', '135', '24', '12:15', '3:45', '1,5', '1.', '2.', '3.', '4.', '5.',
+           'seite', 'raum', 'stufe', 'ziel', 'punkt', 'runde'] } },
+  { title: 'Numbers 6–0', keys: '67890', target: 12,
+    hint: 'The right hand reaches up to the number row.',
+    words: {
+      en: ['6', '7', '8', '9', '0', '60', '78', '90', '100', '365', '2026', '1990', '10:30', '19:45', '24/7', '99%',
+           '1,000', '6th', '7th', '8th', '9th', '10th', '6789', '9876', '50',
+           'year', 'hours', 'minutes', 'people', 'euros', 'percent'],
+      de: ['6', '7', '8', '9', '0', '60', '78', '90', '100', '365', '2026', '1990', '10:30', '19:45', '24/7', '99%',
+           '1.000', '9,5', '6.', '7.', '10.', '6789', '9876', '50',
+           'jahre', 'stunden', 'minuten', 'leute', 'euro', 'prozent'] } },
+  { title: 'Graduation run', keys: '', target: 22,
+    hint: 'Everything together. Pass this to complete the course.',
+    words: {
+      en: ['Practice makes progress.', 'Accuracy first, speed second.', 'Is it 9:30 already?', 'Keep your eyes on the screen!',
+           'We meet on Monday at 14:00.', 'Room 204 is on the 2nd floor.', 'Order 3 boxes, not 30.',
+           'Great work: 95% and rising!', 'Well-placed fingers type faster.', 'Can you reach 40 WPM?',
+           'The report is due in May.', 'Save often; back up daily.', 'Look up, not down.',
+           'Done!', 'Next?', 'Ready.', '2026'],
+      de: ['Erst genau, dann schnell.', 'Ist es schon 9:30 Uhr?', 'Der Blick bleibt am Bildschirm!',
+           'Wir treffen uns am Montag um 14 Uhr.', 'Raum 204 liegt im 2. Stock.', 'Bitte 3 Kartons bestellen, nicht 30.',
+           'Sehr gut: 95 % und mehr!', 'Die Finger bleiben locker.', 'Schaffst du 40 Wörter pro Minute?',
+           'Der Bericht ist im Mai fällig.', 'Kurze Pause, dann weiter.', 'Genauigkeit zählt mehr als Tempo.',
+           'Fertig!', 'Weiter?', 'Super.', '2026'] } }
+];
+const byLayout = v => (v && typeof v === 'object' && !Array.isArray(v)) ? v[state.layout] : v;
+const PASS_ACC = 95;
+
+// Stars: 1 = pass (95% and target WPM), 2 = 97% and 1.25× target, 3 = 99% and 1.5× target
+function starsFor(lessonIdx, r) {
+  const t = LESSONS[lessonIdx].target;
+  if (r.acc >= 99 && r.wpm >= t * 1.5) return 3;
+  if (r.acc >= 97 && r.wpm >= t * 1.25) return 2;
+  if (r.acc >= PASS_ACC && r.wpm >= t) return 1;
+  return 0;
+}
+const passedCount = () => LESSONS.filter((_, i) => (state.lessons[i]?.s || 0) > 0).length;
+const firstOpen = () => { const i = LESSONS.findIndex((_, j) => !(state.lessons[j]?.s > 0)); return i < 0 ? LESSONS.length - 1 : i; };
+
+// Belts unlock by lessons passed; black also needs a 40 WPM sprint at 95%+
+const BELTS = [
+  { name: 'White',  color: '#f3f3ee', lessons: 0 },
+  { name: 'Yellow', color: '#f2c230', lessons: 4 },
+  { name: 'Orange', color: '#ee8a2a', lessons: 8 },
+  { name: 'Green',  color: '#3ba35b', lessons: 11 },
+  { name: 'Blue',   color: '#2f6fd6', lessons: 14 },
+  { name: 'Brown',  color: '#7b4a2b', lessons: 18 },
+  { name: 'Black',  color: '#15151a', lessons: 19, sprint: 40 }
+];
+function beltIndex() {
+  const p = passedCount();
+  let b = 0;
+  BELTS.forEach((belt, i) => { if (p >= belt.lessons && (!belt.sprint || state.sprintBest >= belt.sprint)) b = i; });
+  return b;
+}
+function nextBeltText() {
+  const b = beltIndex();
+  if (b === BELTS.length - 1) return 'Highest rank reached';
+  const nb = BELTS[b + 1], need = nb.lessons - passedCount();
+  if (need > 0) return `${need} more lesson${need > 1 ? 's' : ''} to ${nb.name}`;
+  return `Sprint ${nb.sprint} WPM at ${PASS_ACC}%+ for ${nb.name}`;
+}
+function renderBelt() {
+  const b = BELTS[beltIndex()];
+  document.documentElement.style.setProperty('--belt', b.color);
+  $('beltName').textContent = `${b.name} belt`;
+  $('beltNext').textContent = nextBeltText();
+}
+
+// Lesson text: shuffled picks from the lesson's list (by layout, then language; untypeable words are dropped)
+function lessonText(i, tokens = 16) {
+  const words = (w => (w = w.us ? w[state.layout] : w, w.en ? w[state.lang].filter(x => [...x].every(c => charToKey(c))) : w))(LESSONS[i].words);
+  const out = [];
+  while (out.length < tokens) { const w = pick(words); if (w !== out[out.length - 1] || words.length < 2) out.push(w); }
+  return out.join(' ');
+}
+const sprintText = n => { const pool = WORDS[state.lang].filter(w => [...w].every(c => charToKey(c))); return Array.from({ length: n }, () => pick(pool)).join(' '); };
+
+// ───────────────────────── ANALYTICS ─────────────────────────
+// keyStats[key] = { n: correct presses, e: wrong presses while this key was due, ms: summed gap before it, c: gaps counted }
+const MIN_ATTEMPTS = 10;                 // presses before a key is rated
+const PRACTICE_DAY_SECS = 60;            // a day counts toward the streak after 1 minute of practice
+const errRate = s => s.e / (s.n + s.e);
+const isDeadKey = k => state.layout === 'de' && (k === '^' || k === '´');
+
+// Weakness score = error rate in % + 20 points per 100% slower than your median key
+function weakKeys(limit = 5) {
+  const rows = Object.entries(state.keyStats)
+    .filter(([k, s]) => k !== ' ' && !isDeadKey(k) && charToKey(k) && s.n + s.e >= MIN_ATTEMPTS)
+    .map(([k, s]) => ({ k, err: errRate(s), ms: s.c >= 5 ? s.ms / s.c : null, n: s.n + s.e }));
+  const speeds = rows.map(r => r.ms).filter(Boolean).sort((a, b) => a - b);
+  const median = speeds.length ? speeds[Math.floor(speeds.length / 2)] : null;
+  for (const r of rows) {
+    r.slow = median && r.ms ? Math.max(0, r.ms / median - 1) : 0;
+    r.score = r.err * 100 + r.slow * 20;
+  }
+  return rows.filter(r => r.score > 0).sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+// Focused drill: generated clusters, weighted so the weakest key appears most
+const HOME_ROW = { de: 'asdfjklö', us: 'asdfjkl;' };
+function weightedPick(items) {
+  let r = Math.random() * items.reduce((a, x) => a + x.w, 0);
+  for (const x of items) if ((r -= x.w) <= 0) return x.v;
+  return items[items.length - 1].v;
+}
+function drillText(keys, tokens = 24) {
+  const pool = keys.map(x => ({ v: x.k, w: Math.max(1, x.score) }));
+  const home = [...HOME_ROW[state.layout]];
+  const weak = () => weightedPick(pool);
+  const partner = () => keys.length > 1 ? weak() : pick(home);
+  const patterns = [
+    () => weak().repeat(3 + rnd(2)),                                   // ffff   repetition
+    () => (weak() + partner()).repeat(2),                              // fjfj   alternation
+    () => { const a = weak(); return a + a + a + partner(); },         // fffj   run then switch
+    () => { const h = pick(home), a = weak(); return h + a + h; },     // jfj    reach out from home and back
+    () => Array.from({ length: 3 + rnd(3), }, () => Math.random() < 0.7 ? weak() : pick(home)).join('')   // mixed
+  ];
+  const out = [];
+  while (out.length < tokens) { const t = pick(patterns)(); if (t !== out[out.length - 1]) out.push(t); }
+  return out.join(' ');
+}
+
+// Streak: consecutive days with practice. Today only extends it; not having practised yet today doesn't break it.
+function streaks() {
+  const practiced = d => (state.daily[todayKey(d)] || 0) >= PRACTICE_DAY_SECS;
+  const d = new Date();
+  const todayDone = practiced(d);
+  if (!todayDone) d.setDate(d.getDate() - 1);
+  let current = 0;
+  while (practiced(d)) { current++; d.setDate(d.getDate() - 1); }
+  let longest = 0, run = 0, prev = null;
+  for (const k of Object.keys(state.daily).filter(k => state.daily[k] >= PRACTICE_DAY_SECS).sort()) {
+    const t = new Date(k + 'T12:00');
+    run = prev && Math.round((t - prev) / 86400000) === 1 ? run + 1 : 1;
+    longest = Math.max(longest, run); prev = t;
+  }
+  return { current, longest, todayDone };
+}
+
+function lastDays(n) {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (n - 1 - i));
+    return { date: d, mins: (state.daily[todayKey(d)] || 0) / 60 };
+  });
+}
+
+// ───────────────────────── CHARTS (SVG) ─────────────────────────
+function niceTicks(min, max, count = 4) {
+  const raw = (max - min) / count, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = lo; v <= hi + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100);
+  return ticks;
+}
+
+// Hover tooltip shared by all charts: positioned in the chart's own pixel space
+function chartTip(el) {
+  let tip = el.querySelector('.tip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.append(tip); }
+  return {
+    show(html, x, y, W) {
+      const scale = el.querySelector('svg').getBoundingClientRect().width / W;
+      tip.innerHTML = html; tip.hidden = false;
+      tip.style.left = Math.min(Math.max(x * scale, 60), el.clientWidth - 60) + 'px';
+      tip.style.top = y * scale + 'px';
+    },
+    hide() { tip.hidden = true; }
+  };
+}
+
+// One series, one axis. pts = [{ v, tip }], oldest first.
+function lineChart(el, pts, { min, max, fmt = v => v, ref = null, refLabel = '', label }) {
+  if (!pts.length) { el.innerHTML = '<p class="empty">Your runs will appear here.</p>'; return; }
+  const W = 560, H = 200, L = 36, R = 40, T = 14, B = 24;
+  const ticks = niceTicks(min, max);
+  min = ticks[0]; max = ticks[ticks.length - 1];
+  const step = pts.length > 1 ? (W - L - R) / (pts.length - 1) : 0;
+  const x = i => pts.length > 1 ? L + i * step : (L + W - R) / 2;
+  const y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">`;
+  for (const t of ticks) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`;
+  if (ref != null) s += `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(ref)}" y2="${y(ref)}"/>`;
+  s += `<path class="line" d="${pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('')}"/>`;
+  pts.forEach((p, i) => { s += `<circle class="dot" cx="${x(i)}" cy="${y(p.v)}" r="4"/>`; });
+  const last = pts.length - 1;
+  s += `<text class="end-label" x="${x(last) + 8}" y="${y(pts[last].v) + 4}">${fmt(pts[last].v)}</text>`;
+  s += `<text class="axis" x="${L}" y="${H - 6}">older</text><text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">latest</text>`;
+  s += `<line class="cross" id="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/>`;
+  s += `<rect class="hit" x="${L - 10}" y="0" width="${W - L - R + 20}" height="${H}"/></svg>`;
+  if (ref != null) s += `<div class="chart-legend"><span><i class="dash"></i>${refLabel}</span></div>`;
+  el.innerHTML = s;
+
+  const svg = el.querySelector('svg'), cross = svg.querySelector('#cross'), tip = chartTip(el);
+  svg.addEventListener('mousemove', e => {
+    const r = svg.getBoundingClientRect(), mx = (e.clientX - r.left) * W / r.width;
+    const i = step ? Math.max(0, Math.min(last, Math.round((mx - L) / step))) : 0;
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+    tip.show(pts[i].tip, x(i), y(pts[i].v), W);
+  });
+  svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); tip.hide(); });
+}
+
+// Daily minutes as bars with rounded tops, against a dashed goal line
+function barChart(el, days, goal) {
+  const W = 560, H = 200, L = 36, R = 12, T = 14, B = 24;
+  const ticks = niceTicks(0, Math.max(goal * 1.4, ...days.map(d => d.mins)));
+  const max = ticks[ticks.length - 1];
+  const slot = (W - L - R) / days.length, bw = slot * 0.62, base = H - B;
+  const y = v => T + (1 - v / max) * (H - T - B);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Practice minutes per day for the last ${days.length} days">`;
+  for (const t of ticks) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`;
+  days.forEach((d, i) => {
+    const x0 = L + i * slot + (slot - bw) / 2;
+    if (d.mins > 0) {
+      const top = Math.min(y(d.mins), base - 2), r = Math.min(4, (base - top) / 2, bw / 2);
+      s += `<path class="${d.mins >= goal ? 'bar-met' : 'bar-low'}" d="M${x0},${base} V${top + r} Q${x0},${top} ${x0 + r},${top} H${x0 + bw - r} Q${x0 + bw},${top} ${x0 + bw},${top + r} V${base} Z"/>`;
+    }
+    const lbl = i === days.length - 1 ? 'Today' : d.date.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2);
+    if (i % 2 === 1 || i === days.length - 1) s += `<text class="axis" x="${x0 + bw / 2}" y="${H - 6}" text-anchor="middle">${lbl}</text>`;
+  });
+  s += `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(goal)}" y2="${y(goal)}"/>`;
+  days.forEach((_, i) => { s += `<rect class="hit" data-i="${i}" x="${L + i * slot}" y="${T}" width="${slot}" height="${H - T - B}"/>`; });
+  el.innerHTML = s + '</svg>';
+
+  const tip = chartTip(el);
+  el.querySelectorAll('.hit').forEach(h => {
+    h.addEventListener('mouseenter', () => {
+      const i = +h.dataset.i, d = days[i];
+      const when = d.date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      tip.show(`${when} · ${Math.round(d.mins)} min${d.mins >= goal ? ' · goal met' : ''}`, L + i * slot + slot / 2, Math.min(y(d.mins), y(goal)), W);
+    });
+    h.addEventListener('mouseleave', () => tip.hide());
+  });
+}
+
+// Heatmap: one hue, light → dark, in 5 error-rate buckets
+const HEAT_EDGES = [0.02, 0.04, 0.06, 0.08];
+const HEAT_MIX = [6, 26, 46, 70, 92];
+const HEAT_LABELS = ['under 2%', '2–4%', '4–6%', '6–8%', '8%+'];
+const heatBucket = rate => HEAT_EDGES.filter(e => rate >= e).length;
+
+// ───────────────────────── 6. TYPING ENGINE ─────────────────────────
+class Typer {
+  constructor(box, kbd, hooks = {}) { this.box = box; this.inner = box.querySelector('.inner'); this.kbd = kbd; this.hooks = hooks; }
+
+  load(text, { timed = 0, extend = null } = {}) {
+    clearInterval(this.iv);
+    Object.assign(this, { text, timed, extend, i: 0, errors: 0, errAt: new Set(), keys: {}, t0: 0, tLast: 0, tEnd: 0, done: false });
+    this.inner.textContent = '';
+    this.spans = [];
+    this.inner.style.transform = '';
+    this.append(text);
+    this.markCursor();
+    this.update();
+  }
+
+  append(str) {
+    const frag = document.createDocumentFragment();
+    let word = null;
+    for (const ch of str) {
+      const s = document.createElement('span');
+      s.className = 'c';
+      s.textContent = ch;
+      this.spans.push(s);
+      if (ch === ' ') { word = null; frag.append(s); }
+      else { if (!word) { word = document.createElement('span'); word.className = 'w'; frag.append(word); } word.append(s); }
+    }
+    this.inner.append(frag);
+  }
+
+  markCursor() {
+    this.spans[this.i - 1]?.classList.remove('cur');
+    const s = this.spans[this.i];
+    if (!s) return;
+    s.classList.add('cur');
+    const lh = parseFloat(getComputedStyle(this.inner).lineHeight) || 40;
+    this.inner.style.transform = `translateY(${-Math.max(0, s.offsetTop - lh)}px)`;
+  }
+
+  update() { this.kbd?.setNext(this.done ? null : this.text[this.i]); this.hooks.onUpdate?.(this); }
+
+  key(e) {
+    if (this.done || e.key.length !== 1) return false;
+    const now = performance.now();
+    if (!this.t0) {
+      this.t0 = this.tLast = now;
+      document.activeElement?.blur?.();
+      if (this.timed) this.iv = setInterval(() => this.tick(), 100);
+    }
+    const expected = this.text[this.i];
+    const ks = this.keys[expected] || (this.keys[expected] = { n: 0, e: 0, ms: 0, c: 0 });
+    const span = this.spans[this.i];
+
+    if (e.key === expected) {
+      const dt = now - this.tLast;
+      if (this.i > 0 && dt < 2500) { ks.ms += dt; ks.c++; }
+      ks.n++;
+      span.classList.remove('bad');
+      span.classList.add(this.errAt.has(this.i) ? 'fix' : 'ok');
+      this.kbd?.flash(e.key, true);
+      this.i++; this.tLast = now;
+      if (this.i >= this.text.length) {
+        if (this.extend) { const more = ' ' + this.extend(); this.text += more; this.append(more); }
+        else { this.finish(); return true; }
+      }
+      this.markCursor();
+    } else {
+      this.errors++; ks.e++; this.errAt.add(this.i);
+      span.classList.remove('bad'); void span.offsetWidth; span.classList.add('bad');
+      this.kbd?.flash(e.key, false);
+    }
+    this.update();
+    return true;
+  }
+
+  tick() { if (this.elapsed() >= this.timed * 1000) this.finish(); else this.hooks.onUpdate?.(this); }
+  elapsed() {
+    if (!this.t0) return 0;
+    const end = this.done ? this.tEnd : performance.now();
+    return this.timed ? Math.min(end - this.t0, this.timed * 1000) : end - this.t0;
+  }
+  wpm() { const min = this.elapsed() / 60000; return min > 0.03 ? (this.i / 5) / min : 0; }
+  acc() { const total = this.i + this.errors; return total ? (this.i / total) * 100 : 100; }
+  progress() { return this.timed ? this.elapsed() / (this.timed * 1000) : this.i / this.text.length; }
+
+  finish() {
+    if (this.done) return;
+    this.done = true; this.tEnd = performance.now(); clearInterval(this.iv);
+    this.spans[this.i]?.classList.remove('cur');
+    this.kbd?.setNext(null);
+    this.hooks.onDone?.({ wpm: this.wpm(), acc: this.acc(), errors: this.errors, chars: this.i, secs: this.elapsed() / 1000, keys: this.keys });
+  }
+  stop() { clearInterval(this.iv); this.done = true; this.kbd?.setNext(null); }
+}
+
+// ───────────────────────── 7. SHARED UI ─────────────────────────
+const modeName = x => ({ lesson: `Lesson ${(x.l ?? 0) + 1}`, sprint: 'Sprint', rain: 'Word Rain', drill: 'Focused drill' })[x.m] || x.m;
+const starsHtml = n => `<span class="stars" aria-label="${n} of 3 stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(3 - n)}</span></span>`;
+
+function renderLive(el, t, label) {
+  el.innerHTML = `<div><b>${Math.round(t.wpm())}</b> <span>WPM</span></div>
+    <div><b>${Math.round(t.acc())}%</b> <span>accuracy</span></div>
+    <div><b>${label}</b></div>
+    <div class="bar"><i style="width:${Math.min(100, t.progress() * 100)}%"></i></div>`;
+}
+
+function showResult(el, r, { extra = '', note, actions }) {
+  const missed = Object.entries(r.keys).filter(([, s]) => s.e).sort((a, b) => b[1].e - a[1].e).slice(0, 3)
+    .map(([k, s]) => `${k === ' ' ? 'Space' : k} (${s.e})`).join(', ');
+  el.innerHTML = `
+    <div class="res-nums">
+      <div><b>${Math.round(r.wpm)}</b><span>WPM</span></div>
+      <div><b>${r.acc.toFixed(1)}%</b><span>accuracy</span></div>
+      <div><b>${r.errors}</b><span>errors</span></div>
+      <div><b>${Math.round(r.secs)} s</b><span>time</span></div>
+      ${extra}
+    </div>
+    <p>${note}</p>
+    ${missed ? `<p class="help">Most missed: ${missed}</p>` : ''}
+    <div class="res-actions">${actions.map((a, i) => `<button class="btn ${i ? '' : 'primary'}" data-act="${i}">${a.label}</button>`).join('')}</div>
+    <p class="help">Press Enter for “${actions[0].label}”.</p>`;
+  el.hidden = false;
+  el.onclick = e => { const b = e.target.closest('[data-act]'); if (b) actions[+b.dataset.act].run(); };
+  el._primary = actions[0].run;
+}
+function resultKey(el, e) {
+  if (el.hidden) return null;
+  if (e.key === 'Enter') { el._primary(); return true; }
+  return false;
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 2600);
+}
+
+function renderLegend() {
+  const order = ['lp', 'lr', 'lm', 'li', 'ri', 'rm', 'rr', 'rp'];
+  $('legend').innerHTML = order.map(f => `<span><i class="f-${f}"></i>${FINGER_NAMES[f].replace(' finger', '')}</span>`).join('');
+}
+
+// ───────────────────────── 8. VIEWS ─────────────────────────
+const views = {
+  dojo: {
+    result: $('dojoResult'),
+    init() {
+      this.kbd = new Keyboard($('dojoKbd'), {
+        onFinger: (f, shift) => { $('fingerHint').innerHTML = f ? `Next key: <b>${FINGER_NAMES[f]}</b>${shift ? ' + Shift with the other hand' : ''}` : ''; }
+      });
+      this.kbd.render();
+      this.typer = new Typer($('dojoText'), this.kbd, {
+        onUpdate: t => renderLive($('dojoLive'), t, t.timed ? `${Math.ceil(t.timed - t.elapsed() / 1000)} s` : `${t.i} / ${t.text.length}`),
+        onDone: r => this.done(r)
+      });
+      $('ladder').addEventListener('click', e => {
+        const b = e.target.closest('[data-lesson]');
+        if (b) { b.blur(); this.open(+b.dataset.lesson); }
+      });
+    },
+    enter() {
+      if (this.pendingDrill) { this.pendingDrill = false; this.startDrill(); }
+      else this.open(state.lesson ?? firstOpen());
+    },
+
+    open(i) {
+      this.mode = 'lesson';
+      this.idx = Math.max(0, Math.min(LESSONS.length - 1, i));
+      state.lesson = this.idx; Store.save(state);
+      this.renderHead(); this.renderLadder();
+      this.newText();
+    },
+
+    // Focused drill: 60 seconds of generated clusters on your weakest keys, extended as you type
+    startDrill() {
+      const keys = weakKeys(4);
+      if (!keys.length) { toast('Not enough data yet. Practise a few lessons first.'); this.open(state.lesson ?? 0); return; }
+      this.mode = 'drill'; this.drillKeys = keys;
+      this.renderHead(); this.renderLadder(); this.newText();
+    },
+
+    newText() { this.text = this.mode === 'drill' ? drillText(this.drillKeys) : lessonText(this.idx); this.restart(); },
+    restart() {
+      this.result.hidden = true;
+      this.typer.load(this.text, this.mode === 'drill' ? { timed: 60, extend: () => drillText(this.drillKeys, 12) } : {});
+    },
+
+    renderHead() {
+      if (this.mode === 'drill') {
+        $('lessonEyebrow').textContent = 'Focused drill · 60 seconds';
+        $('lessonTitle').textContent = 'Your weakest keys';
+        $('lessonHint').textContent = 'Generated from your error and speed data: repeats, alternations and reaches from the home row. The weakest key gets the most practice.';
+        $('newKeys').innerHTML = this.drillKeys.map(x => `<span class="cap">${x.k === 'ß' ? 'ß' : x.k.toUpperCase()}</span>`).join('');
+        return;
+      }
+      const L = LESSONS[this.idx], keys = byLayout(L.keys);
+      $('lessonEyebrow').textContent = `Lesson ${this.idx + 1} of ${LESSONS.length} · target ${L.target} WPM at ${PASS_ACC}%`;
+      $('lessonTitle').textContent = byLayout(L.title);
+      $('lessonHint').textContent = byLayout(L.hint);
+      $('newKeys').innerHTML = keys === '⇧' ? '<span class="cap">Shift</span>'
+        : [...keys].map(k => `<span class="cap">${k === 'ß' ? 'ß' : k.toUpperCase()}</span>`).join('');
+    },
+
+    renderLadder() {
+      const next = firstOpen();
+      $('ladder').innerHTML = LESSONS.map((L, i) => `
+        <li><button data-lesson="${i}" aria-current="${this.mode === 'lesson' && i === this.idx}">
+          <span class="num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="ttl">${byLayout(L.title)}${i === next ? '<span class="tag">Next</span>' : ''}</span>
+          ${starsHtml(state.lessons[i]?.s || 0)}
+        </button></li>`).join('');
+    },
+
+    drillDone(r) {
+      const ids = new Set(this.drillKeys.map(x => x.k));
+      const before = this.drillKeys.reduce((a, x) => a + x.err, 0) / this.drillKeys.length;
+      let n = 0, e = 0;
+      for (const [ch, s] of Object.entries(r.keys)) if (ids.has(keyIdFor(ch))) { n += s.n; e += s.e; }
+      const now = n + e ? e / (n + e) : 0;
+      recordRun('drill', r, { k: [...ids].join('') });
+      const note = `Errors on these keys: ${(now * 100).toFixed(1)}% this run, ${(before * 100).toFixed(1)}% in your history. `
+        + (now < before ? 'Improving.' : 'Slow and precise beats fast and sloppy here.');
+      showResult(this.result, r, { note, actions: [
+        { label: 'New drill', run: () => this.startDrill() },
+        { label: 'Back to lessons', run: () => this.open(state.lesson ?? firstOpen()) }
+      ] });
+    },
+
+    done(r) {
+      if (this.mode === 'drill') return this.drillDone(r);
+      const i = this.idx, L = LESSONS[i];
+      const stars = starsFor(i, r);
+      const beltBefore = beltIndex();
+      const prev = state.lessons[i] || { s: 0, w: 0, a: 0 };
+      state.lessons[i] = { s: Math.max(prev.s, stars), w: Math.max(prev.w, round1(r.wpm)), a: Math.max(prev.a, round1(r.acc)) };
+      recordRun('lesson', r, { l: i, p: stars > 0 ? 1 : 0 });
+      const beltAfter = beltIndex();
+      renderBelt(); this.renderLadder();
+
+      let note;
+      if (stars === 3) note = 'Three stars. Flawless.';
+      else if (stars > 0) note = stars === 1
+        ? `Passed. For two stars: 97% accuracy and ${Math.ceil(L.target * 1.25)} WPM.`
+        : `Two stars. For three: 99% accuracy and ${Math.ceil(L.target * 1.5)} WPM.`;
+      else if (r.acc < PASS_ACC) note = `Accuracy ${r.acc.toFixed(1)}%. Aim for ${PASS_ACC}%: slow down slightly, speed follows precision.`;
+      else note = `Accurate. Now build to ${L.target} WPM with a steady rhythm rather than bursts.`;
+
+      if (beltAfter > beltBefore) {
+        const b = BELTS[beltAfter];
+        note += `</p><p class="belt-up"><span class="swatch" style="background:${b.color}"></span>New rank: ${b.name} belt`;
+      }
+
+      const hasNext = i < LESSONS.length - 1;
+      const actions = stars > 0 && hasNext
+        ? [{ label: 'Next lesson', run: () => this.open(i + 1) }, { label: 'Try again', run: () => this.newText() }]
+        : [{ label: 'Try again', run: () => this.newText() }, ...(hasNext ? [{ label: 'Skip ahead', run: () => this.open(i + 1) }] : [])];
+      showResult(this.result, r, { extra: `<div>${starsHtml(stars)}<span>this run</span></div>`, note, actions });
+    },
+
+    key(e) {
+      const r = resultKey(this.result, e); if (r !== null) return r;
+      if (e.key === 'Escape') { this.restart(); return true; }
+      return this.typer.key(e);
+    },
+    leave() { if (this.typer.t0 && !this.typer.done) this.restart(); },
+    langChanged() { if (this.mode === 'lesson') this.newText(); },
+    layoutChanged() {
+      this.kbd.render();
+      if (this.mode === 'drill') this.startDrill();
+      else { this.renderHead(); this.renderLadder(); this.newText(); }
+    }
+  },
+
+  sprint: {
+    result: $('sprintResult'),
+    init() {
+      this.typer = new Typer($('sprintText'), null, {
+        onUpdate: t => renderLive($('sprintLive'), t, `${Math.ceil(state.sprintDur - t.elapsed() / 1000)} s`),
+        onDone: r => this.done(r)
+      });
+      $('sprintDur').addEventListener('click', e => {
+        const b = e.target.closest('[data-dur]'); if (!b) return;
+        state.sprintDur = +b.dataset.dur; Store.save(state); b.blur(); this.start();
+      });
+    },
+    enter() { this.start(); },
+    start() {
+      document.querySelectorAll('#sprintDur .btn').forEach(b => b.setAttribute('aria-pressed', +b.dataset.dur === state.sprintDur));
+      this.result.hidden = true;
+      this.typer.load(sprintText(40), { timed: state.sprintDur, extend: () => sprintText(20) });
+    },
+    done(r) {
+      const beltBefore = beltIndex();
+      recordRun('sprint', r);
+      const best = r.acc >= PASS_ACC && r.wpm > state.sprintBest;
+      if (best) { state.sprintBest = round1(r.wpm); Store.save(state); renderBelt(); }
+      let note = best ? 'New personal best.' : state.sprintBest
+        ? `Personal best: ${Math.round(state.sprintBest)} WPM (counted at ${PASS_ACC}%+ accuracy).` : `Bests count only at ${PASS_ACC}%+ accuracy.`;
+      if (beltIndex() > beltBefore) note += ` New rank: ${BELTS[beltIndex()].name} belt.`;
+      showResult(this.result, r, { note, actions: [{ label: 'Sprint again', run: () => this.start() }] });
+    },
+    key(e) {
+      const r = resultKey(this.result, e); if (r !== null) return r;
+      if (e.key === 'Escape') { this.start(); return true; }
+      return this.typer.key(e);
+    },
+    leave() { this.typer.stop(); },
+    langChanged() { this.start(); }
+  },
+
+  // ── Word Rain ──────────────────────────────────────────────
+  // Words fall; typing a first letter locks onto the lowest matching word; finishing it clears it.
+  // A word reaching the ground costs a life. Every 8 cleared words raises the level (faster, more frequent).
+  rain: {
+    phase: 'intro',          // intro | playing | paused | over
+    words: [], target: null,
+
+    init() {
+      this.arena = $('arena');
+      this.overlay = $('rainOverlay');
+      this.kbd = new Keyboard($('rainKbd'));
+      this.kbd.render();
+      this.overlay.addEventListener('click', e => {
+        const b = e.target.closest('[data-act]');
+        if (b?.dataset.act === 'start') this.start();
+        if (b?.dataset.act === 'resume') this.resume();
+      });
+      this.overlay.addEventListener('change', e => {
+        if (e.target.id === 'rainGuide') { state.rainGuide = e.target.checked; Store.save(state); e.target.blur(); this.applyGuide(); }
+      });
+      this.applyGuide();
+      this.showIntro();
+    },
+
+    enter() { this.renderHud(); if (this.phase === 'playing') this.pause(); },
+    leave() { if (this.phase === 'playing') this.pause(); },
+    layoutChanged() { this.kbd.render(); this.updateGuide(); },
+    applyGuide() { $('rainKbd').hidden = !state.rainGuide; },
+
+    // Word pool: active language, only words typeable on the active layout
+    pool() {
+      const list = RAIN_WORDS[state.lang].filter(w => [...w].every(c => charToKey(c)));
+      return list.length ? list : ['rain', 'drop', 'type'];
+    },
+
+    // ── lifecycle ──
+    start() {
+      this.clearWords();
+      Object.assign(this, { phase: 'playing', score: 0, level: 1, lives: 3, combo: 0, maxCombo: 0, cleared: 0,
+                            hits: 0, misses: 0, keys: {}, target: null, spawnIn: 0.4, pausedFor: 0 });
+      this.t0 = this.last = performance.now();
+      this.overlay.hidden = true;
+      document.activeElement?.blur?.();
+      this.renderHud(); this.updateGuide();
+      cancelAnimationFrame(this.raf);
+      this.raf = requestAnimationFrame(t => this.frame(t));
+    },
+    pause() {
+      if (this.phase !== 'playing') return;
+      this.phase = 'paused'; this.pausedAt = performance.now();
+      cancelAnimationFrame(this.raf);
+      this.overlayHtml(`<h2>Paused</h2><p>Press Esc or Enter to carry on.</p><button class="btn primary" data-act="resume">Resume</button>`);
+    },
+    resume() {
+      if (this.phase !== 'paused') return;
+      const now = performance.now();
+      this.pausedFor += now - this.pausedAt;
+      this.phase = 'playing'; this.last = now; this.overlay.hidden = true;
+      this.raf = requestAnimationFrame(t => this.frame(t));
+    },
+    end() {
+      this.phase = 'over';
+      cancelAnimationFrame(this.raf);
+      this.clearWords(); this.target = null; this.updateGuide();
+      const secs = (performance.now() - this.t0 - this.pausedFor) / 1000;
+      const total = this.hits + this.misses;
+      const r = { wpm: secs > 2 ? (this.hits / 5) / (secs / 60) : 0, acc: total ? this.hits / total * 100 : 100,
+                  errors: this.misses, chars: this.hits, secs, keys: this.keys };
+      const beltBefore = beltIndex();
+      recordRun('rain', r, { sc: this.score });
+      const best = this.score > state.rainBest;
+      if (best) { state.rainBest = this.score; Store.save(state); }
+      renderBelt();
+      this.overlayHtml(`
+        <h2>${best ? 'New high score' : 'Round over'}</h2>
+        <div class="res-nums">
+          <div><b>${this.score}</b><span>score</span></div>
+          <div><b>${this.cleared}</b><span>words</span></div>
+          <div><b>${this.level}</b><span>level</span></div>
+          <div><b>${Math.round(r.wpm)}</b><span>WPM</span></div>
+          <div><b>${r.acc.toFixed(1)}%</b><span>accuracy</span></div>
+        </div>
+        <p>Best combo ×${this.maxCombo} · High score ${state.rainBest}${beltIndex() > beltBefore ? ` · New rank: ${BELTS[beltIndex()].name} belt` : ''}</p>
+        <button class="btn primary" data-act="start">Play again</button>
+        <p class="help">Press Enter to play again.</p>`);
+      this.renderHud();
+    },
+    showIntro() {
+      this.overlayHtml(`
+        <h2>Word Rain</h2>
+        <p>Words fall from the top. Type each one before it lands. Clear words in a row to build a combo multiplier. Three misses on the ground and the round ends.</p>
+        <label class="opt"><input type="checkbox" id="rainGuide" ${state.rainGuide ? 'checked' : ''}> Show keyboard guide</label><br>
+        <button class="btn primary" data-act="start">Start round</button>
+        <p class="help">Press Enter to start.</p>`);
+    },
+    overlayHtml(html) { this.overlay.innerHTML = `<div>${html}</div>`; this.overlay.hidden = false; },
+
+    // ── game loop ──
+    frame(now) {
+      if (this.phase !== 'playing') return;
+      const dt = Math.min(0.05, (now - this.last) / 1000);   // clamp so a stalled tab doesn't teleport words
+      this.last = now;
+
+      this.spawnIn -= dt;
+      if (this.spawnIn <= 0) {
+        this.spawn();
+        this.spawnIn = Math.max(0.7, 2.4 - this.level * 0.17);
+      }
+
+      const floor = this.arena.clientHeight - 6;
+      for (const w of [...this.words]) {
+        w.y += w.v * dt;
+        if (w.y + w.h >= floor) { this.land(w); if (this.phase !== 'playing') return; continue; }
+        w.el.style.top = w.y + 'px';
+      }
+      this.raf = requestAnimationFrame(t => this.frame(t));
+    },
+
+    spawn() {
+      if (this.words.length >= 6 + this.level) return;
+      const pool = this.pool();
+      const taken = new Set(this.words.map(w => w.text[0]));
+      let text = pick(pool);
+      for (let i = 0; i < 10 && taken.has(text[0]); i++) text = pick(pool);   // prefer a unique first letter
+
+      const el = document.createElement('div');
+      el.className = 'drop';
+      el.innerHTML = `<span class="done"></span><span class="rest"></span>`;
+      el.lastChild.textContent = text;
+      this.arena.append(el);
+      const width = el.offsetWidth, h = el.offsetHeight;
+      const x = 8 + rnd(Math.max(1, this.arena.clientWidth - width - 16));
+      el.style.left = x + 'px';
+      el.style.top = -h + 'px';
+      const speed = (26 + this.level * 6) * (0.85 + Math.random() * 0.3);   // px per second
+      this.words.push({ text, typed: 0, y: -h, h, v: speed, el });
+    },
+
+    land(w) {
+      this.remove(w);
+      if (this.target === w) { this.target = null; this.updateGuide(); }
+      this.lives--; this.combo = 0;
+      this.arena.classList.remove('hurt'); void this.arena.offsetWidth; this.arena.classList.add('hurt');
+      this.renderHud();
+      if (this.lives <= 0) this.end();
+    },
+
+    clearWord(w) {
+      const mult = 1 + Math.min(this.combo, 20) * 0.1;              // up to ×3
+      this.score += Math.round(w.text.length * 10 * mult);
+      this.combo++; this.maxCombo = Math.max(this.maxCombo, this.combo);
+      this.cleared++;
+      if (this.cleared % 8 === 0) { this.level++; toast(`Level ${this.level}`); }
+      this.words = this.words.filter(x => x !== w);
+      w.el.classList.add('pop');
+      setTimeout(() => w.el.remove(), 260);
+      this.target = null;
+    },
+
+    remove(w) { this.words = this.words.filter(x => x !== w); w.el.remove(); },
+    clearWords() { this.words.forEach(w => w.el.remove()); this.words = []; },
+
+    // ── typing ──
+    key(e) {
+      if (this.phase === 'intro' || this.phase === 'over') {
+        if (e.key === 'Enter') { this.start(); return true; }
+        return false;
+      }
+      if (this.phase === 'paused') {
+        if (e.key === 'Escape' || e.key === 'Enter') { this.resume(); return true; }
+        return true;
+      }
+      if (e.key === 'Escape') { this.pause(); return true; }
+      if (e.key === 'Backspace') { this.release(); return true; }
+      if (e.key.length !== 1) return false;
+      if (e.key === ' ') return true;                               // no spaces in words; just swallow it
+
+      const now = performance.now();
+      if (!this.target) {
+        // lock onto the lowest word that starts with this letter
+        const hit = this.words.filter(w => w.text[0] === e.key).sort((a, b) => b.y - a.y)[0];
+        if (!hit) { this.misses++; this.combo = 0; this.kbd.flash(e.key, false); this.renderHud(); return true; }
+        this.target = hit;
+        hit.el.classList.add('target');
+        this.lastKeyAt = now;
+      }
+
+      const w = this.target, expected = w.text[w.typed];
+      const ks = this.keys[expected] || (this.keys[expected] = { n: 0, e: 0, ms: 0, c: 0 });
+      if (e.key === expected) {
+        const dt = now - (this.lastKeyAt || now);
+        if (w.typed > 0 && dt < 2500) { ks.ms += dt; ks.c++; }
+        ks.n++; this.hits++; w.typed++;
+        this.lastKeyAt = now;
+        w.el.firstChild.textContent = w.text.slice(0, w.typed);
+        w.el.lastChild.textContent = w.text.slice(w.typed);
+        this.kbd.flash(e.key, true);
+        if (w.typed === w.text.length) this.clearWord(w);
+      } else {
+        ks.e++; this.misses++; this.combo = 0;
+        w.el.classList.remove('wrong'); void w.el.offsetWidth; w.el.classList.add('wrong');
+        this.kbd.flash(e.key, false);
+      }
+      this.updateGuide(); this.renderHud();
+      return true;
+    },
+
+    release() {
+      const w = this.target;
+      if (!w) return;
+      w.typed = 0;
+      w.el.classList.remove('target');
+      w.el.firstChild.textContent = '';
+      w.el.lastChild.textContent = w.text;
+      this.target = null;
+      this.updateGuide();
+    },
+
+    updateGuide() { this.kbd.setNext(this.target ? this.target.text[this.target.typed] : null); },
+
+    renderHud() {
+      const lives = this.phase === 'intro' ? 3 : this.lives;
+      $('rainHud').innerHTML = `
+        <div><b>${this.score || 0}</b> <span>score</span></div>
+        <div><b>${this.level || 1}</b> <span>level</span></div>
+        <div><b>×${this.combo || 0}</b> <span>combo</span></div>
+        <div class="lives" aria-label="${lives} lives left">${[0, 1, 2].map(i => `<i class="${i < lives ? '' : 'lost'}"></i>`).join('')}</div>
+        <div><b>${state.rainBest}</b> <span>high score</span></div>`;
+    }
+  },
+  // ── Progress ───────────────────────────────────────────────
+  progress: {
+    init() {
+      this.heat = new Keyboard($('heatKbd'));
+      $('goalSel').addEventListener('change', e => { state.goal = +e.target.value; Store.save(state); e.target.blur(); this.render(); });
+      $('drillBtn').addEventListener('click', () => { views.dojo.pendingDrill = true; location.hash = 'dojo'; });
+      const confirm = on => { $('resetConfirm').hidden = !on; $('resetBtn').hidden = on; };
+      $('resetBtn').addEventListener('click', () => confirm(true));
+      $('resetNo').addEventListener('click', () => confirm(false));
+      $('resetYes').addEventListener('click', () => {
+        state = { ...Store.defaults(), layout: state.layout, layoutManual: state.layoutManual, lang: state.lang };
+        Store.save(state); confirm(false); renderBelt(); this.render(); toast('Progress erased.');
+      });
+    },
+    enter() { this.render(); },
+    key() { return false; },
+    layoutChanged() { if (current === 'progress') this.render(); },
+
+    render() {
+      $('goalSel').value = state.goal;
+      this.renderTiles();
+      this.renderCharts();
+      this.renderWeak();
+      this.renderHeat();
+      this.renderRecent();
+    },
+
+    renderTiles() {
+      const st = streaks(), h = state.history;
+      const todayMin = Math.floor((state.daily[todayKey()] || 0) / 60);
+      const last10 = h.slice(-10);
+      const avg = f => last10.length ? last10.reduce((a, x) => a + x[f], 0) / last10.length : 0;
+      const totalMin = Math.round(Object.values(state.daily).reduce((a, x) => a + x, 0) / 60);
+      const belt = BELTS[beltIndex()];
+      const tile = (tl, tv, ts) => `<div class="tile"><span class="tl">${tl}</span><span class="tv">${tv}</span><span class="ts">${ts}</span></div>`;
+      $('tiles').innerHTML = [
+        tile('Streak', `${st.current} day${st.current === 1 ? '' : 's'}`,
+          st.todayDone ? `Longest: ${st.longest} days` : st.current ? 'Practise today to keep it going' : 'One minute today starts a streak'),
+        tile('Today', `${todayMin} / ${state.goal} min`, todayMin >= state.goal ? 'Goal met' : `${state.goal - todayMin} min to go`),
+        tile('Best sprint', state.sprintBest ? `${Math.round(state.sprintBest)} WPM` : '–', `at ${PASS_ACC}%+ accuracy`),
+        tile('Last 10 runs', last10.length ? `${Math.round(avg('w'))} WPM` : '–', last10.length ? `${avg('a').toFixed(1)}% accuracy` : 'No runs yet'),
+        tile('Total practice', totalMin >= 60 ? `${Math.floor(totalMin / 60)} h ${totalMin % 60} min` : `${totalMin} min`, `${h.length} runs`),
+        tile('Rank', `${belt.name} belt`, nextBeltText())
+      ].join('');
+    },
+
+    renderCharts() {
+      const runs = state.history.filter(x => x.m !== 'rain' || x.w > 0).slice(-30);
+      const tipFor = x => {
+        const when = new Date(x.t).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        return `<b>${modeName(x)}</b> · ${when}<br>${Math.round(x.w)} WPM · ${x.a.toFixed(1)}%`;
+      };
+      const speeds = runs.map(x => ({ v: x.w, tip: tipFor(x) }));
+      const accs = runs.map(x => ({ v: x.a, tip: tipFor(x) }));
+      lineChart($('chSpeed'), speeds, { min: 0, max: Math.max(20, ...runs.map(x => x.w)), fmt: v => Math.round(v), label: 'Words per minute over recent runs' });
+      lineChart($('chAcc'), accs, { min: Math.min(80, ...runs.map(x => x.a)), max: 100, fmt: v => Math.round(v) + '%',
+        ref: PASS_ACC, refLabel: `${PASS_ACC}% target`, label: 'Accuracy over recent runs' });
+      barChart($('chDays'), lastDays(14), state.goal);
+    },
+
+    renderWeak() {
+      const weak = weakKeys(5);
+      $('drillBtn').disabled = !weak.length;
+      if (!weak.length) {
+        $('weakList').innerHTML = `<p class="empty">Not enough data yet. Each key needs ${MIN_ATTEMPTS} presses before it's rated; a couple of lessons will do it.</p>`;
+        return;
+      }
+      const top = weak[0].score;
+      $('weakList').innerHTML = `<ol class="weak">${weak.map(w => `
+        <li><span class="cap">${w.k === 'ß' ? 'ß' : w.k.toUpperCase()}</span>
+          <div><div class="meter"><i style="width:${Math.max(6, w.score / top * 100)}%"></i></div>
+            <small>${(w.err * 100).toFixed(1)}% errors · ${w.ms ? Math.round(w.ms) + ' ms per stroke' : 'speed not rated yet'}${w.slow > 0.2 ? ' · slower than your usual' : ''}</small></div>
+          <small>${w.n} presses</small></li>`).join('')}</ol>`;
+    },
+
+    renderHeat() {
+      this.heat.render();
+      this.heat.heat(state.keyStats, info => {
+        if (!info) { $('heatDetail').textContent = 'Hover a key for details.'; return; }
+        const name = info.k === ' ' ? 'Space' : info.k.toUpperCase(), s = info.s;
+        $('heatDetail').innerHTML = !s || s.n + s.e < MIN_ATTEMPTS
+          ? `<b>${name}</b> · ${s ? s.n + s.e : 0} presses so far, needs ${MIN_ATTEMPTS}`
+          : `<b>${name}</b> · ${(errRate(s) * 100).toFixed(1)}% errors · ${s.n + s.e} presses${s.c ? ` · ${Math.round(s.ms / s.c)} ms per stroke` : ''}`;
+      });
+      $('heatScale').innerHTML = 'Errors: ' + HEAT_MIX.map((m, i) =>
+        `<i style="background:color-mix(in oklab, var(--heat) ${m}%, var(--surface-2))"></i><span>${HEAT_LABELS[i]}</span>`).join(' ');
+    },
+
+    renderRecent() {
+      const rows = state.history.slice(-10).reverse();
+      $('recent').innerHTML = rows.length ? `<thead><tr><th>When</th><th>Mode</th><th class="num">WPM</th><th class="num">Accuracy</th><th class="num">Time</th></tr></thead><tbody>${
+        rows.map(x => `<tr><td>${new Date(x.t).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${modeName(x)}</td><td class="num">${Math.round(x.w)}</td><td class="num">${x.a.toFixed(1)}%</td><td class="num">${x.s} s</td></tr>`).join('')}</tbody>`
+        : '<tbody><tr><td class="empty">No runs yet.</td></tr></tbody>';
+    }
+  }
+};
+Object.values(views).forEach(v => v.init?.());
+
+// ───────────────────────── 9. ROUTER ─────────────────────────
+let current = null;
+function show(name) {
+  name = views[name] ? name : 'dojo';
+  if (current && current !== name) views[current].leave?.();
+  current = name;
+  for (const v of Object.keys(views)) $('view-' + v).hidden = v !== current;
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === current));
+  views[current].enter();
+}
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { b.blur(); location.hash = b.dataset.view; } });
+window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+// ───────────────────────── 10. SETTINGS: layout + language ─────────────────────────
+function setLayout(layout, { manual = false } = {}) {
+  if (manual) state.layoutManual = true;
+  if (state.layout === layout && !manual) return;
+  state.layout = layout;
+  Store.save(state);
+  $('layoutSel').value = layout;
+  Object.values(views).forEach(v => v.layoutChanged?.());
+}
+
+// Auto-detect from the physical key position until the user picks a layout by hand
+function detectLayout(e) {
+  if (state.layoutManual || e.key.length !== 1) return;
+  const k = e.key.toLowerCase();
+  let d = null;
+  if (e.code === 'KeyY' && k === 'z') d = 'de';
+  else if (e.code === 'KeyZ' && k === 'z') d = 'us';
+  else if ('öäüß'.includes(k)) d = 'de';
+  else if (e.code === 'Semicolon' && k === ';') d = 'us';
+  if (d && d !== state.layout) { setLayout(d); toast(`Keyboard detected: ${LAYOUTS[d].name}. Change it any time at the top.`); }
+}
+
+$('layoutSel').value = state.layout;
+$('layoutSel').addEventListener('change', e => { setLayout(e.target.value, { manual: true }); e.target.blur(); });
+$('langSel').value = state.lang;
+$('langSel').addEventListener('change', e => {
+  state.lang = e.target.value; Store.save(state); e.target.blur();
+  Object.values(views).forEach(v => v.langChanged?.());
+});
+
+// ───────────────────────── 11. INPUT ─────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  detectLayout(e);
+  if (views[current].key(e)) e.preventDefault();
+});
+
+// Pause the game when the tab or window loses focus
+document.addEventListener('visibilitychange', () => { if (document.hidden) views.rain.pause(); });
+window.addEventListener('blur', () => views.rain.pause());
+
+// ───────────────────────── THEME: System → Light → Dark ─────────────────────────
+const THEME_KEY = 'keystroke-dojo-theme';
+function applyTheme(mode) {
+  const root = document.documentElement, btn = $('themeBtn');
+  if (mode === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode);
+  const label = { system: 'System', light: 'Light', dark: 'Dark' }[mode];
+  btn.dataset.mode = mode;
+  btn.querySelector('.lbl').textContent = label;
+  btn.setAttribute('aria-label', `Theme: ${label}. Click to change.`);
+}
+let theme = 'system';
+try { theme = localStorage.getItem(THEME_KEY) || 'system'; } catch {}
+applyTheme(theme);
+$('themeBtn').addEventListener('click', e => {
+  theme = { system: 'light', light: 'dark', dark: 'system' }[theme];
+  try { localStorage.setItem(THEME_KEY, theme); } catch {}
+  applyTheme(theme);
+  e.currentTarget.blur();
+});
+
+renderLegend();
+renderBelt();
+show(location.hash.slice(1));
+
+// ───────────────────────── OFFLINE / INSTALL ─────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('Service worker not registered:', err)));
+}
+</script>
+</body>
+</html>
